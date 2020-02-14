@@ -5,8 +5,7 @@ extern HINSTANCE g_hInst;
 Feat::Feat(HWND hWndParent)
 {
 	bFlag = 0;
-	//TCHAR szBuffer[64];
-	//wsprintf(szBuffer, TEXT("特征名%i"), i + 1);
+
 	hNameLbl = CreateWindowEx(0, TEXT("static"), NULL,
 		WS_VISIBLE | WS_CHILD | SS_RIGHT,
 		0, 0, 0, 0, hWndParent, NULL, g_hInst, NULL);
@@ -30,13 +29,13 @@ Feat::Feat(HWND hWndParent)
 		WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
 		0, 0, 0, 0, hWndParent, NULL, g_hInst, NULL);
 	SendMessage(hBtnPlus, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
-	SetWindowLongPtr(hBtnPlus, 0, (LONG)this);
+	SetWindowLongPtr(hBtnPlus, GWLP_USERDATA, (LONG)this);
 
 	hBtnMinus = CreateWindowEx(0, TEXT("button"), TEXT("-"),
 		WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
 		0, 0, 0, 0, hWndParent, NULL, g_hInst, NULL);
 	SendMessage(hBtnMinus, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
-	SetWindowLongPtr(hBtnMinus, 0, (LONG)this);
+	SetWindowLongPtr(hBtnMinus, GWLP_USERDATA, (LONG)this);
 	Button_Enable(hBtnMinus, FALSE);
 }
 
@@ -77,6 +76,8 @@ void Feat::SetValLblText(const TCHAR *format, ...)
 void Feat::AddFeatVal(FeatVal *featVal)
 {
 	vals.push_back(featVal);
+	if (vals.size() == 2)
+		Button_Enable(hBtnMinus, TRUE);
 }
 
 void Feat::DelFeatVal(int vid)
@@ -86,13 +87,30 @@ void Feat::DelFeatVal(int vid)
 	for (int i = vid+1; i < vals.size(); ++i)
 		vals[i - 1] = vals[i];
 	vals.pop_back();
+	if (vals.size() == 1)
+		Button_Enable(hBtnMinus, FALSE);
 }
 
+
+std::vector<FeatVal*>& Feat::GetFeatValArry()
+{
+	return vals;
+}
 
 FeatVal * Feat::GetFeatVal(int vid)
 {
 	if (vid < 0 || vid >= vals.size()) throw;
 	return vals[vid];
+}
+
+FeatVal * Feat::BackFeatVal()
+{
+	return vals.back();
+}
+
+FeatVal * Feat::FrontFeatVal()
+{
+	return vals.front();
 }
 
 int Feat::GetNamLblText(__out TCHAR* szLblTxt, __in int iMaxSize)
@@ -111,14 +129,17 @@ RECT Feat::MoveWindow(int x, int y, BOOL bRepaint)
 	::MoveWindow(hNameLbl, x, y, 50, 20, bRepaint);
 	::MoveWindow(hNameEdt, x+60, y, 71, 20, bRepaint);
 	::MoveWindow(hValLbl, x, y + 30, 50, 20, bRepaint);
-	RECT rcBig = { x, y, x + 60 + 71, y + 50 };
-	int xBase = 0;
+	RECT rcBig = { x, y, x + 60 + 71, y + 50 }, rc{ x,y,x+50,y+50 };
 	for (int j = 0; j < vals.size(); ++j)
 	{
-		RECT rc = vals[j]->MoveWindow(xBase + x + 60, y + 30, TRUE);
+		rc = vals[j]->MoveWindow(rc.right + 10, y + 30, bRepaint);
 		UnionRect(&rcBig, &rcBig, &rc);
-		xBase += 80;
 	}
+	::MoveWindow(hBtnPlus, rc.right + 10, y + 30, 30, 20, bRepaint);
+	rc.right += 40;
+	::MoveWindow(hBtnMinus, rc.right + 10, y + 30, 30, 20, bRepaint);
+	rc.right += 40;
+	UnionRect(&rcBig, &rcBig, &rc);
 	return rcBig;
 }
 
@@ -127,12 +148,18 @@ BOOL Feat::AnyEmpty()
 	TCHAR szName[64], szVal[64], szNameLbl[64], szValLbl[64], szBuf[64];
 	int iSize = GetNamEdtText(szName, sizeof szName);
 	if (szName[0] == '\0')
+	{	
+		GetNamLblText(szNameLbl, sizeof szNameLbl);
+		wsprintf(szBuf, TEXT("%s 为空,请填写数据"), szNameLbl);
+		MessageBox(NULL, szBuf, TEXT("数据生成器"), MB_ICONWARNING);
+		SetFocus();
 		return TRUE;
+	}
 	for (int j = 0; j < vals.size(); ++j)
 	{
 		if (vals[j]->AnyEmpty())
 		{
-			Static_GetText(hValLbl, szValLbl, sizeof szValLbl);
+			GetNamLblText(szNameLbl, sizeof szNameLbl);
 			wsprintf(szBuf, TEXT("%s 的第%i个特征值为空,请填写数据"), szNameLbl, j + 1);
 			MessageBox(NULL, szBuf, TEXT("数据生成器"), MB_ICONWARNING);
 			vals[j]->SetFocus();
@@ -199,6 +226,8 @@ FeatureTable::~FeatureTable()
 
 void FeatureTable::AddFeat(Feat* feat)
 {
+	feat->SetNamLblText(TEXT("特征名%i"), fFeatArry.size()+1);
+	feat->SetValLblText(TEXT("特征值"));
 	fFeatArry.push_back(feat);
 }
 
@@ -226,6 +255,16 @@ Feat* FeatureTable::GetFeat(int fid)
 	return fFeatArry[fid];
 }
 
+Feat* FeatureTable::BackFeat()
+{
+	return fFeatArry.back();
+}
+
+Feat* FeatureTable::FrontFeat()
+{
+	return fFeatArry.front();
+}
+
 void FeatureTable::SetFeature(int fid, Feat* feat)
 {
 	if (fFeatArry.size() >= fid) throw;
@@ -241,25 +280,9 @@ RECT FeatureTable::MoveWindow(int x, int y, BOOL bRepaint)
 
 	for (i = 0; i < fFeatArry.size(); ++i)
 	{
-		RECT rc = fFeatArry[i]->MoveWindow(x, y - yBase, bRepaint);
+		RECT rc = fFeatArry[i]->MoveWindow(22 + x, 5 + y + yBase, bRepaint);
 		UnionRect(&rcBig, &rcBig, &rc);
 		yBase += 60;
-// 		if (!isCal) MoveWindow(g_feat.name[i].hFeatNameLbl, 22 - xBeg, yBase + 5 - yBeg, 50, 20, TRUE);
-// 		if (!isCal) MoveWindow(g_feat.name[i].hFeatNameEdt, 82 - xBeg, yBase + 5 - yBeg, 71, 20, TRUE);
-// 		if (!isCal) MoveWindow(g_feat.name[i].hFeatValLbl, 22 - xBeg, yBase + 35 - yBeg, 50, 20, TRUE);
-// 		int xBase = 0;
-// 		for (j = 0; j < g_feat.name[i].iFeatValNum; ++j)
-// 		{
-// 			if (!isCal) MoveWindow(g_feat.name[i].val[j].hFeatValEdt, xBase + 82 - xBeg, yBase + 35 - yBeg, 71, 20, TRUE);
-// 			xBase += 80;
-// 		}
-// 		xBase -= 80;
-// 		if (!isCal) MoveWindow(g_feat.name[i].hFeatValBtnPlus, xBase + 164 - xBeg, yBase + 35 - yBeg, 25, 20, TRUE);
-// 		if (!isCal) MoveWindow(g_feat.name[i].hFeatValBtnMinus, xBase + 198 - xBeg, yBase + 35 - yBeg, 25, 20, TRUE);
-// 		yBase += 60;
-
-// 		xMax = max(xBase + 198 + 20 + 10, xMax);
-// 		yMax = max(yBase, yMax);
 	}
 	return rcBig;
 }
@@ -272,45 +295,9 @@ BOOL FeatureTable::AnyEmpty()
 	{
 		if (fFeatArry[i]->AnyEmpty())
 		{
-			fFeatArry[i]->GetNamLblText(szLblTxt, sizeof szLblTxt);
-			wsprintf(szBuf, TEXT("%s 为空,请填写数据"), szLblTxt);
-			MessageBox(NULL, szBuf, TEXT("数据生成器"), MB_ICONWARNING);
-			fFeatArry[i]->SetFocus();
 			return TRUE;
 		}
-	}
-
-
-
-
-// 	int i, j;
-// 	TCHAR szBuffer[256], szBuffer1[256], szBuffer2[256];
-// 	for (i = 0; i < g_feat.iFeatNamNum; ++i)
-// 	{
-// 		Edit_GetText(g_feat.name[i].hFeatNameEdt, szBuffer1, sizeof szBuffer1);
-// 		if (szBuffer1[0] == '\0')
-// 		{
-// 			Static_GetText(g_feat.name[i].hFeatNameLbl, szBuffer1, sizeof szBuffer1);
-// 			wsprintf(szBuffer, TEXT("%s 为空,请填写数据"), szBuffer1);
-// 			MessageBox(NULL, szBuffer, TEXT("数据生成器"), MB_ICONWARNING);
-// 			SetFocus(g_feat.name[i].hFeatNameEdt);
-// 			return FALSE;
-// 		}
-// 		for (j = 0; j < g_feat.name[i].iFeatValNum; ++j)
-// 		{
-// 			Edit_GetText(g_feat.name[i].val[j].hFeatValEdt, szBuffer2, sizeof szBuffer2);
-// 			if (szBuffer2[0] == '\0')
-// 			{
-// 				Static_GetText(g_feat.name[i].hFeatNameLbl, szBuffer1, sizeof szBuffer1);
-// 				wsprintf(szBuffer, TEXT("%s 的第%i个特征值为空,请填写数据"), szBuffer1, j + 1);
-// 				MessageBox(NULL, szBuffer, TEXT("数据生成器"), MB_ICONWARNING);
-// 				SetFocus(g_feat.name[i].val[j].hFeatValEdt);
-// 				return FALSE;
-// 			}
-// 		}
-// 	}
-
-	
+	}	
 	return FALSE;
 }
 

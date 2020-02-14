@@ -43,7 +43,6 @@ void logWrite(const TCHAR *format, ...)
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
-HWND DoCreateTabControl(HWND hwndParent);
 int InsertTabItem(HWND hTab, LPTSTR pszText, int iid);
 BOOL CALLBACK EnumChildWinProc(HWND hwnd, LPARAM lParam);
 LRESULT CALLBACK TabProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -167,64 +166,38 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 	case WM_CREATE:
 	{
+		INITCOMMONCONTROLSEX icex;
+
+		// Initialize common controls.
+		icex.dwSize = sizeof(INITCOMMONCONTROLSEX);
+		icex.dwICC = ICC_TAB_CLASSES;
+		InitCommonControlsEx(&icex);
+
 		// Tab Control
-		g_hTabControl = DoCreateTabControl(hwnd);
+
+		g_hTabControl = CreateWindowEx(0, WC_TABCONTROL, NULL,
+			TCS_FIXEDWIDTH | WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN,
+			0, 0, 0, 0,
+			hwnd, NULL, g_hInst, NULL);
 		wsprintf(szBuffer, TEXT("新数据集1*"));
 		InsertTabItem(g_hTabControl, szBuffer, 0);
 		oldTabProc = (WNDPROC)SetWindowLongPtr(g_hTabControl, GWLP_WNDPROC, (LONG)TabProc);
 
 
-		// 特征GroupBox
-		g_hGrpBoxFeat = CreateWindowEx(0, TEXT("button"), TEXT("特征"),
-			WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_CLIPCHILDREN,
-			0, 0, 0, 0, g_hTabControl, NULL, g_hInst, NULL);
-		oldFeatGrpBoxProc = (WNDPROC)SetWindowLongPtr(g_hGrpBoxFeat, GWLP_WNDPROC, (LONG)FeatureGrpBoxProc);
+		EnumChildWindows(hwnd, EnumChildWinProc, 0);
+		break;
+	}
+	case WM_SIZE:
+	{
+		// Tab Control
+		GetClientRect(hwnd, &rc);
+		TabCtrl_AdjustRect(hwnd, TRUE, &rc);
+		MoveWindow(g_hTabControl, rc.left, rc.top, rc.right + 2, rc.bottom + 2, TRUE);
 
-
-		g_hWinFeat = CreateWindowEx(0, TEXT("FeatureWindow"), NULL,
-			WS_CHILD | WS_VISIBLE | WS_BORDER | WS_HSCROLL | WS_VSCROLL | WS_CLIPCHILDREN,
-			0, 0, 0, 0, g_hGrpBoxFeat, NULL, g_hInst, NULL);
-
-
-		// 类别GroupBox
-		g_hGrpBoxClss = CreateWindowEx(0, TEXT("button"), TEXT("类别"),
-			WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-			0, 0, 0, 0, g_hTabControl, NULL, g_hInst, NULL);
-		oldClssGrpBoxProc = (WNDPROC)SetWindowLongPtr(g_hGrpBoxClss, GWLP_WNDPROC, (LONG)ClssGrpBoxProc);
-
-
-		g_hWinClss = CreateWindowEx(0, TEXT("ClssWindow"), NULL,
-			WS_CHILD | WS_VISIBLE | WS_BORDER | WS_CLIPCHILDREN,
-			0, 0, 0, 0, g_hGrpBoxClss, NULL, g_hInst, NULL);
-		
-
-		// 参数GroupBox
-		g_hGrpBoxParam = CreateWindowEx(0, TEXT("button"), TEXT("参数"),
-			WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-			0, 0, 0, 0, g_hTabControl, NULL, g_hInst, NULL);
-
-
-		// 决策树GroupBox
-		g_hGrpBoxDecTree = CreateWindowEx(0, TEXT("button"), TEXT("决策树"),
-			WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-			0, 0, 0, 0, g_hTabControl, NULL, g_hInst, NULL);
-		oldDecTreeGrpBoxProc = (WNDPROC)SetWindowLongPtr(g_hGrpBoxDecTree, GWLP_WNDPROC, (LONG)DecTreeGrpBoxProc);
-
-
-		g_hWinDecTree = CreateWindowEx(0, TEXT("DecTreeWindow"), NULL,
-			WS_CHILD | WS_VISIBLE | WS_BORDER | WS_HSCROLL | WS_VSCROLL,
-			0, 0, 0, 0, g_hGrpBoxDecTree, NULL, g_hInst, NULL);
-		//oldDecTreeWinProc = (WNDPROC)SetWindowLongPtr(g_hWinDecTree, GWLP_WNDPROC, (LONG)DecTreeWinProc);
-
-
-		// -----------------------
-		// 日志edit
-		g_hLogWin = CreateWindow(TEXT("LogWindow"), TEXT("日志记录..."),
-			WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | WS_BORDER,
-			9, 605, 743, 125, g_hTabControl, NULL, g_hInst, NULL);
 
 #ifdef MYDEBUG
 		logWrite(TEXT("开始初始化主窗口..."));
+		logWrite(TEXT("主窗口创建完毕."));
 		logWrite(TEXT("开始创建Tab Control"));
 		logWrite(TEXT("开始创建 特征GroupBox"));
 		logWrite(TEXT("开始创建 特征Window"));
@@ -235,50 +208,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 		logWrite(TEXT("开始创建 决策树Window"));
 		logWrite(TEXT("开始创建 日志Edit Control"));
 		logWrite(TEXT("开始创建 按钮们"));
-#endif
-		//------------------------
-		//按钮们
-		g_hBtnAddFeat = CreateWindowEx(0, TEXT("button"), TEXT("添加特征"),
-			WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-			0, 0, 0, 0, g_hGrpBoxFeat, NULL, g_hInst, NULL);
-
-		g_hBtnBuildDecTree = CreateWindowEx(0, TEXT("button"), TEXT("构造决策树"),
-			WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-			0, 0, 0, 0, g_hGrpBoxDecTree, NULL, g_hInst, NULL);
-
-		g_hBtnGenDataSet = CreateWindowEx(0, TEXT("button"), TEXT("生成数据集"),
-			WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-			0, 0, 0, 0, g_hTabControl, NULL, g_hInst, NULL);
-
-#ifdef MYDEBUG
 		logWrite(TEXT("枚举所有子窗口 设置字体DEFAULT_GUI_FONT"));
 #endif
-		EnumChildWindows(hwnd, EnumChildWinProc, 0);
-
-#ifdef MYDEBUG
-		logWrite(TEXT("主窗口创建完毕."));
-#endif
-		break;
-	}
-	case WM_SIZE:
-	{
-		// Tab Control
-		GetClientRect(hwnd, &rc);
-		TabCtrl_AdjustRect(hwnd, TRUE, &rc);
-		MoveWindow(g_hTabControl, rc.left, rc.top, rc.right + 2, rc.bottom + 2, TRUE);
-
-		MoveWindow(g_hGrpBoxFeat, 9, 31, 370, 264, TRUE);
-
-		MoveWindow(g_hGrpBoxClss, 389, 31, 363, 90, TRUE);
-
-		MoveWindow(g_hGrpBoxParam, 389, 143, 363, 152, TRUE);
-
-		MoveWindow(g_hGrpBoxDecTree, 9, 295, 743, 300, TRUE);
-
-		MoveWindow(g_hLogWin, 9, 605, 743, 125, TRUE);
-
-		MoveWindow(g_hBtnGenDataSet, 652, 735, 100, 30, TRUE);
-
 		return 0;
 	}
 	case WM_NOTIFY:
@@ -327,7 +258,49 @@ LRESULT CALLBACK TabProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_SIZE:
-		break;
+	{
+		if (!g_hLogWin)
+			g_hLogWin = CreateWindow(TEXT("LogWindow"), TEXT("日志记录..."),
+				WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | WS_BORDER,
+				0, 0, 0, 0, hwnd, NULL, g_hInst, NULL);
+		if (!g_hGrpBoxFeat)
+		{
+			g_hGrpBoxFeat = CreateWindowEx(0, TEXT("button"), TEXT("特征"),
+				WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_CLIPCHILDREN,
+				0, 0, 0, 0, hwnd, NULL, g_hInst, NULL);
+			oldFeatGrpBoxProc = (WNDPROC)SetWindowLongPtr(g_hGrpBoxFeat, GWLP_WNDPROC, (LONG)FeatureGrpBoxProc);
+		}
+		if (!g_hGrpBoxClss)
+		{
+			g_hGrpBoxClss = CreateWindowEx(0, TEXT("button"), TEXT("类别"),
+				WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
+				0, 0, 0, 0, hwnd, NULL, g_hInst, NULL);
+			oldClssGrpBoxProc = (WNDPROC)SetWindowLongPtr(g_hGrpBoxClss, GWLP_WNDPROC, (LONG)ClssGrpBoxProc);
+		}
+		if (!g_hGrpBoxParam)
+			g_hGrpBoxParam = CreateWindowEx(0, TEXT("button"), TEXT("参数"),
+				WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
+				0, 0, 0, 0, hwnd, NULL, g_hInst, NULL);
+		if (!g_hGrpBoxDecTree)
+		{
+			g_hGrpBoxDecTree = CreateWindowEx(0, TEXT("button"), TEXT("决策树"),
+				WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
+				0, 0, 0, 0, hwnd, NULL, g_hInst, NULL);
+			oldDecTreeGrpBoxProc = (WNDPROC)SetWindowLongPtr(g_hGrpBoxDecTree, GWLP_WNDPROC, (LONG)DecTreeGrpBoxProc);
+		}
+		if (!g_hBtnGenDataSet)
+			g_hBtnGenDataSet = CreateWindowEx(0, TEXT("button"), TEXT("生成数据集"),
+				WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+				0, 0, 0, 0, hwnd, NULL, g_hInst, NULL);
+		MoveWindow(g_hLogWin, 9, 605, 743, 125, TRUE);
+		MoveWindow(g_hGrpBoxFeat, 9, 31, 370, 264, TRUE);
+		MoveWindow(g_hGrpBoxClss, 389, 31, 363, 90, TRUE);
+		MoveWindow(g_hGrpBoxParam, 389, 143, 363, 152, TRUE);
+		MoveWindow(g_hGrpBoxDecTree, 9, 295, 743, 300, TRUE);
+		MoveWindow(g_hBtnGenDataSet, 652, 735, 100, 30, TRUE);
+
+		return 0;
+	}
 	case WM_COMMAND:
 		if ((HWND)lParam == g_hBtnGenDataSet && HIWORD(wParam) == BN_CLICKED)
 		{
@@ -337,7 +310,7 @@ LRESULT CALLBACK TabProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	default:
 		break;
 	}
-	return oldTabProc(hwnd, message, wParam, lParam);
+	return CallWindowProc(oldTabProc,hwnd, message, wParam, lParam);
 }
 
 LRESULT CALLBACK FeatureGrpBoxProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -352,27 +325,30 @@ LRESULT CALLBACK FeatureGrpBoxProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
 	{
 		cxClient = LOWORD(lParam);
 		cyClient = HIWORD(lParam);
+		
+		if (!g_hBtnAddFeat)
+			g_hBtnAddFeat = CreateWindowEx(0, TEXT("button"), TEXT("添加特征"),
+				WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+				0, 0, 0, 0, hwnd, NULL, g_hInst, NULL);
+		if (!g_hWinFeat)
+			g_hWinFeat = CreateWindowEx(0, TEXT("FeatureWindow"), NULL,
+				WS_CHILD | WS_VISIBLE | WS_BORDER | WS_HSCROLL | WS_VSCROLL | WS_CLIPCHILDREN,
+				0, 0, 0, 0, hwnd, NULL, g_hInst, NULL);
+		
 		MoveWindow(g_hBtnAddFeat, cxClient - 110, cyClient - 40, 100, 30, TRUE);
 		MoveWindow(g_hWinFeat, 10, 20, cxClient - 20, cyClient - 70, TRUE);
+		break;
+	}
+	case WM_KEYDOWN:
+	{
+		logWrite(TEXT("Press %x", wParam));
 		break;
 	}
 	case WM_COMMAND:
 	{
 		if ((HWND)lParam == g_hBtnAddFeat && HIWORD(wParam) == BN_CLICKED)
 		{
-
-// 			Feat *f = new Feat(hwnd);
-// 			f->SetNamLblText(TEXT("特征名%i"), ft.CountFeature());
-// 			f->SetValLblText(TEXT("特征值"));
-// 			ft.AddFeat(f);
-
-
-// 			if (!AddOneFeature(g_feat, g_hWinFeat))
-// 			{
-// 				wsprintf(szBuffer, TEXT("抱歉,当前最多添加%i个特征,如需更多请开通vip服务"), MAX_FEAT_NUM);
-// 				MessageBox(NULL, szBuffer,
-// 					g_szCaption, MB_ICONWARNING);
-// 			}
+			ft.AddFeat(new Feat(g_hWinFeat));
 			SendMessage(g_hWinFeat, WM_UPDATESCROLLINFO, 0, 0);
 			InvalidateRect(g_hWinFeat, NULL, TRUE);
 		}
@@ -381,7 +357,7 @@ LRESULT CALLBACK FeatureGrpBoxProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
 	default:
 		break;
 	}
-	return oldFeatGrpBoxProc(hwnd, message, wParam, lParam);
+	return CallWindowProc(oldFeatGrpBoxProc,hwnd, message, wParam, lParam);
 }
 
 
@@ -391,8 +367,8 @@ LRESULT CALLBACK FeatureWinProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 	HDC hdc;
 	PAINTSTRUCT ps;
 	TEXTMETRIC tm;
-	static RECT rc;
-	static int cxClient, cyClient, cxChar, cyChar, iHorzPos, iVerPos;
+	RECT rc;
+	static int cxClient, cyClient, cxUnit, cyUnit, iHorzPos, iVerPos;
 	static int iAccumDelta, iDeltaPerLine;
 	int ulScrollLines;
 	SCROLLINFO si;
@@ -401,50 +377,71 @@ LRESULT CALLBACK FeatureWinProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 	{
 	case WM_CREATE:
 	{
-		hdc = GetDC(hwnd);
-		GetTextMetrics(hdc, &tm);
-		cxChar = tm.tmAveCharWidth;
-		cyChar = tm.tmHeight + tm.tmExternalLeading;
-		ReleaseDC(hwnd, hdc);
+		cxUnit = 10;
+		cyUnit = 10;
 
-		//SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &ulScrollLines, 0);
-		//iDeltaPerLine = WHEEL_DELTA / ulScrollLines : 0;
-		iDeltaPerLine = WHEEL_DELTA;
+		SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &ulScrollLines, 0);
+		iDeltaPerLine = ulScrollLines ? WHEEL_DELTA / ulScrollLines : 0;
 
 		// features
-		//AddOneFeature(g_feat, hwnd);
-		
-		
-// 		Feat *f = new Feat(hwnd);
-// 		f->SetNamLblText(TEXT("特征名%i"), ft.CountFeature());
-// 		f->SetValLblText(TEXT("特征值"));
-// 		ft.AddFeat(f);
-		
+		ft.AddFeat(new Feat(hwnd));
+		ft.BackFeat()->SetFocus();
 		break;
 	}
 	case WM_SIZE:
 	{
-		cxClient = LOWORD(lParam);
-		cyClient = HIWORD(lParam);
+		cxClient = LOWORD(lParam); // 348
+		cyClient = HIWORD(lParam); // 192
 
+		// 滚动条初始化
 		si.cbSize = sizeof si;
-
+	
 		si.fMask = SIF_RANGE | SIF_PAGE;
 		si.nMin = 0;
-		si.nPage = 0;
-		si.nMax = 0;
+		si.nMax = 1;
+		si.nPage = 1;
 		SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
-
+		
 		si.fMask = SIF_RANGE | SIF_PAGE;
 		si.nMin = 0;
-		si.nPage = 0;
-		si.nMax = 0;
+		si.nMax = 1;
+		si.nPage = 1;
 		SetScrollInfo(hwnd, SB_HORZ, &si, TRUE);
+		break;
+	}
+	case WM_KEYDOWN:
+	{
+		logWrite(TEXT("Press %x", wParam));
+		switch (wParam)
+		{
+		case VK_TAB:
+			logWrite(TEXT("Press TAB"));
+			break;
+		default:
+			break;
+		}
+
 		break;
 	}
 	case WM_UPDATESCROLLINFO:
 	{
-		//SetFeatureScrollInfo(hwnd);
+		iHorzPos = GetScrollPos(hwnd, SB_HORZ);
+		iVerPos = GetScrollPos(hwnd, SB_VERT);
+		rc=ft.MoveWindow(0, 0, TRUE);
+		ScrollWindow(hwnd, iHorzPos, iVerPos, NULL, NULL);
+
+		si.cbSize = sizeof si;
+		si.fMask = SIF_RANGE | SIF_PAGE;
+		si.nMin = 0;
+		if (rc.bottom < cyClient)
+			si.nMax = si.nPage = rc.bottom;
+		else
+		{
+			si.nMax = rc.bottom;
+			si.nPage = cyClient;
+		}
+		SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
+		InvalidateRect(hwnd, NULL, TRUE);
 		return 0;
 	}
 	case WM_MOUSEWHEEL:
@@ -485,10 +482,10 @@ LRESULT CALLBACK FeatureWinProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 			si.nPos += si.nPage;
 			break;
 		case SB_LINEUP:
-			si.nPos -= 60;
+			si.nPos -= 10;
 			break;
 		case SB_LINEDOWN:
-			si.nPos += 60;
+			si.nPos += 10;
 			break;
 		case SB_THUMBPOSITION:
 		case SB_THUMBTRACK:
@@ -503,7 +500,6 @@ LRESULT CALLBACK FeatureWinProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 		if (iVerPos != si.nPos)
 		{
 			ScrollWindow(hwnd, 0, iVerPos - si.nPos, NULL, NULL);
-			iVerPos = si.nPos;
 			UpdateWindow(hwnd);
 		}
 		break;
@@ -529,14 +525,14 @@ LRESULT CALLBACK FeatureWinProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 			si.nPos += si.nPage;
 			break;
 		case SB_LINELEFT:
-			si.nPos -= 80;
+			si.nPos -= 10;
 			break;
 		case SB_LINERIGHT:
-			si.nPos += 80;
+			si.nPos += 10;
 			break;
 		case SB_THUMBPOSITION:
 		case SB_THUMBTRACK:
-			si.nPos = ceil(si.nTrackPos/80.0)*80;
+			si.nPos = si.nTrackPos;
 			break;
 		default:
 			break;
@@ -546,19 +542,9 @@ LRESULT CALLBACK FeatureWinProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 		GetScrollInfo(hwnd, SB_HORZ, &si);
 		if (iHorzPos != si.nPos)
 		{
-			ScrollWindow(hwnd, 0, iHorzPos - si.nPos, NULL, NULL);
-			iHorzPos = si.nPos;
+			ScrollWindow(hwnd, iHorzPos - si.nPos, 0, NULL, NULL);
 			UpdateWindow(hwnd);
 		}
-		break;
-	}
-	case WM_PAINT:
-	{
-		hdc = BeginPaint(hwnd, &ps);
-
-		rc=ft.MoveWindow(22-iHorzPos, 5-iVerPos,TRUE);
-
-		EndPaint(hwnd, &ps);
 		break;
 	}
 	case WM_COMMAND:
@@ -566,57 +552,56 @@ LRESULT CALLBACK FeatureWinProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 		GetWindowText((HWND)lParam, szBuffer, sizeof szBuffer);
 		if (szBuffer[0] == TEXT('+'))
 		{
-			Feat *f = (Feat *)GetWindowLongPtr((HWND)lParam, 0);
+			Feat *f = (Feat *)GetWindowLongPtr((HWND)lParam, GWLP_USERDATA);
 			f->AddFeatVal(new FeatVal(hwnd));
-			ScrollWindow(hwnd, -60, 0, NULL, NULL);
+			f->BackFeatVal()->SetFocus();
+			iHorzPos=GetScrollPos(hwnd, SB_HORZ);
+			iVerPos=GetScrollPos(hwnd, SB_VERT);
+			rc = ft.MoveWindow(0, 0, TRUE);
+			ScrollWindow(hwnd, -iHorzPos, -iVerPos, NULL, NULL);
 		}
 		else if (szBuffer[0] == TEXT('-'))
 		{
-			Feat *f = (Feat *)GetWindowLongPtr((HWND)lParam, 0);
+			Feat *f = (Feat *)GetWindowLongPtr((HWND)lParam, GWLP_USERDATA);
 			f->DelFeatVal(f->CountVal() - 1);
-			ScrollWindow(hwnd, 60, 0, NULL, NULL);
+			iHorzPos = GetScrollPos(hwnd, SB_HORZ);
+			iVerPos = GetScrollPos(hwnd, SB_VERT);
+			rc = ft.MoveWindow(0, 0, TRUE);
+			ScrollWindow(hwnd, -iHorzPos, -iVerPos, NULL, NULL);
 		}
-// 		for (i = 0; i < g_feat.iFeatNamNum; ++i)
-// 		{
-// 			if (g_feat.name[i].hFeatValBtnPlus == (HWND)lParam)
-// 			{
-// 				logWrite(TEXT("添加按钮"));
-// 				if (g_feat.name[i].iFeatValNum >= MAX_FEAT_VAL_NUM)
-// 				{
-// 					wsprintf(szBuffer, TEXT("抱歉,每个特征最多添加%i个特征值,如需更多请开通vip服务"), MAX_FEAT_VAL_NUM);
-// 					MessageBox(NULL, szBuffer,
-// 						g_szCaption, MB_ICONWARNING);
-// 					Button_Enable(g_feat.name[i].hFeatValBtnPlus, FALSE);
-// 					break;
-// 				}
-// 				j = g_feat.name[i].iFeatValNum++;
-// 				g_feat.name[i].val[j].hFeatValEdt = CreateWindowEx(0, TEXT("edit"), NULL,
-// 					WS_VISIBLE | WS_CHILD | WS_BORDER,
-// 					0, 0, 0, 0, hwnd, NULL, g_hInst, NULL);
-// 				SendMessage(g_feat.name[i].val[j].hFeatValEdt, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
-// 				if (g_feat.name[i].iFeatValNum == 2)
-// 					Button_Enable(g_feat.name[i].hFeatValBtnMinus, TRUE);
-// 				SendMessage(hwnd, WM_UPDATESCROLLINFO, 0, 0);
-// 				InvalidateRect(hwnd, NULL, TRUE);
-// 				UpdateWindow(hwnd);
-// 				break;
-// 			}
-// 			else if (g_feat.name[i].hFeatValBtnMinus == (HWND)lParam)
-// 			{
-// 				logWrite(TEXT("减去按钮"));
-// 				j = --g_feat.name[i].iFeatValNum;
-// 				if (g_feat.name[i].iFeatValNum == MAX_FEAT_VAL_NUM - 1)
-// 					Button_Enable(g_feat.name[i].hFeatValBtnPlus, TRUE);
-// 				if (g_feat.name[i].iFeatValNum == 1)
-// 					Button_Enable(g_feat.name[i].hFeatValBtnMinus,FALSE);
-// 				if (DestroyWindow(g_feat.name[i].val[j].hFeatValEdt))
-// 					g_feat.name[i].val[j].hFeatValEdt = NULL;
-// 				SendMessage(hwnd, WM_UPDATESCROLLINFO, 0, 0);
-// 				InvalidateRect(hwnd, NULL, TRUE);
-// 				UpdateWindow(hwnd);
-// 				break;
-// 			}
-// 		}
+
+		if (szBuffer[0] == TEXT('+') ||
+			szBuffer[0] == TEXT('-'))
+		{
+			si.cbSize = sizeof si;
+			si.fMask = SIF_RANGE | SIF_PAGE;
+			si.nMin = 0;
+			if (rc.right < cxClient)
+				si.nMax = si.nPage = rc.right;
+			else
+			{
+				si.nMax = rc.right;
+				si.nPage = cxClient;
+			}
+			SetScrollInfo(hwnd, SB_HORZ, &si, TRUE);
+			InvalidateRect(hwnd, NULL, TRUE);
+		}
+		break;
+	}
+	case WM_PAINT:
+	{
+		si.cbSize = sizeof si;
+		si.fMask = SIF_POS;
+		GetScrollInfo(hwnd, SB_HORZ, &si);
+		iHorzPos = si.nPos;
+		GetScrollInfo(hwnd, SB_VERT, &si);
+		iVerPos = si.nPos;
+		hdc = BeginPaint(hwnd, &ps);
+
+		
+		ft.MoveWindow(-iHorzPos, -iVerPos,TRUE);
+
+		EndPaint(hwnd, &ps);
 		break;
 	}
 	default:
@@ -646,36 +631,6 @@ LRESULT CALLBACK FeatureWinProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 // 	SetScrollInfo(hwnd, SB_HORZ, &si, TRUE);
 // }
 
-// RECT DrawFeatureWin(HDC hdc, int xBeg, int yBeg, BOOL isCal/* = FALSE*/)
-// {
-// 	// feat
-// 	int yBase = 0, xMax = 0, yMax = 0, i, j;
-// 	RECT rc{ 0 };
-// 	
-// 	for (i =  0; i < g_feat.iFeatNamNum; ++i)
-// 	{
-// 		if (!isCal) MoveWindow(g_feat.name[i].hFeatNameLbl, 22 - xBeg, yBase + 5 - yBeg, 50, 20, TRUE);
-// 		if (!isCal) MoveWindow(g_feat.name[i].hFeatNameEdt, 82 - xBeg, yBase + 5 - yBeg, 71, 20, TRUE);
-// 		if (!isCal) MoveWindow(g_feat.name[i].hFeatValLbl, 22 - xBeg, yBase + 35 - yBeg, 50, 20, TRUE);
-// 		int xBase = 0;
-// 		for (j = 0; j < g_feat.name[i].iFeatValNum; ++j)
-// 		{
-// 			if (!isCal) MoveWindow(g_feat.name[i].val[j].hFeatValEdt, xBase + 82 - xBeg, yBase + 35 - yBeg, 71, 20, TRUE);
-// 			xBase += 80;
-// 		}
-// 		xBase -= 80;
-// 		if (!isCal) MoveWindow(g_feat.name[i].hFeatValBtnPlus, xBase + 164 - xBeg, yBase + 35 - yBeg, 25, 20, TRUE);
-// 		if (!isCal) MoveWindow(g_feat.name[i].hFeatValBtnMinus, xBase + 198 - xBeg, yBase + 35 - yBeg, 25, 20, TRUE);
-// 		yBase += 60;
-// 
-// 		xMax = max(xBase + 198 + 20 + 10, xMax);
-// 		yMax = max(yBase, yMax);
-// 	}
-// 	rc.right = xMax;
-// 	rc.bottom = yMax;
-// 	return rc;
-// }
-
 LRESULT CALLBACK ClssGrpBoxProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	int cxClient, cyClient;
@@ -688,13 +643,20 @@ LRESULT CALLBACK ClssGrpBoxProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 	{
 		cxClient = LOWORD(lParam);
 		cyClient = HIWORD(lParam);
+
+		if (!g_hWinClss)
+			g_hWinClss = CreateWindowEx(0, TEXT("ClssWindow"), NULL,
+			WS_CHILD | WS_VISIBLE | WS_BORDER | WS_CLIPCHILDREN,
+				0, 0, 0, 0, hwnd, NULL, g_hInst, NULL);
+		
 		MoveWindow(g_hWinClss, 10, 20, cxClient - 20, cyClient - 30, TRUE);
+
 		break;
 	}
 	default:
 		break;
 	}
-	return oldClssGrpBoxProc(hwnd, message, wParam, lParam);
+	return CallWindowProc(oldClssGrpBoxProc,hwnd, message, wParam, lParam);
 }
 
 LRESULT CALLBACK ClssWinProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -720,22 +682,13 @@ LRESULT CALLBACK ClssWinProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
 		ReleaseDC(hwnd, hdc);
 
 		// class
-		//AddOneClss(g_clss, hwnd);
-		Clss *c = new Clss();
-		c->SetNamLblText(TEXT("类别名"));
-		c->SetValLblText(TEXT("类别值"));
-		ct.AddClss(c);
+		ct.AddClss(new Clss(hwnd));
 		break;
 	}
 	case WM_PAINT:
 	{
 		hdc = BeginPaint(hwnd, &ps);
-		ct.MoveWindow(20, 5, TRUE);
-// 		MoveWindow(g_clss.hClssNameLbl, 20, 5, 67, 20, TRUE);
-// 		MoveWindow(g_clss.hClssNameEdt, 100, 5, 71, 20, TRUE);
-// 		MoveWindow(g_clss.hClssValLbl, 20, 30, 67, 20, TRUE);
-// 		MoveWindow(g_clss.hClssValEdt1, 100, 30, 71, 20, TRUE);
-// 		MoveWindow(g_clss.hClssValEdt2, 180, 30, 71, 20, TRUE);
+		ct.MoveWindow(0, 0, TRUE);
 		EndPaint(hwnd, &ps);
 		break;
 	}
@@ -759,8 +712,19 @@ LRESULT CALLBACK DecTreeGrpBoxProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
 	{
 		cxClient = LOWORD(lParam);
 		cyClient = HIWORD(lParam);
-		MoveWindow(g_hBtnBuildDecTree, cxClient - 110, cyClient - 40, 100, 30, TRUE);
+
+		if (!g_hWinDecTree)
+			g_hWinDecTree = CreateWindowEx(0, TEXT("DecTreeWindow"), NULL,
+				WS_CHILD | WS_VISIBLE | WS_BORDER | WS_HSCROLL | WS_VSCROLL,
+				0, 0, 0, 0, hwnd, NULL, g_hInst, NULL);
+
+		if (!g_hBtnBuildDecTree)
+			g_hBtnBuildDecTree = CreateWindowEx(0, TEXT("button"), TEXT("构造决策树"),
+				WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+				0, 0, 0, 0, hwnd, NULL, g_hInst, NULL);
+		
 		MoveWindow(g_hWinDecTree, 10, 20, cxClient - 20, cyClient - 70, TRUE);
+		MoveWindow(g_hBtnBuildDecTree, cxClient - 110, cyClient - 40, 100, 30, TRUE);
 		break;
 	}
 	case WM_COMMAND:
@@ -788,70 +752,9 @@ LRESULT CALLBACK DecTreeGrpBoxProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
 	default:
 		break;
 	}
-	return oldDecTreeGrpBoxProc(hwnd, message, wParam, lParam);
+	return CallWindowProc(oldDecTreeGrpBoxProc, hwnd, message, wParam, lParam);
 }
 
-
-// BOOL DoCheckFeatAndClass()
-// {
-// 	// check feature
-// 	int i, j;
-// 	TCHAR szBuffer[256],szBuffer1[256],szBuffer2[256];
-// 	for (i=0;i<g_feat.iFeatNamNum;++i)
-// 	{
-// 		Edit_GetText(g_feat.name[i].hFeatNameEdt, szBuffer1, sizeof szBuffer1);
-// 		if (szBuffer1[0] == '\0')
-// 		{
-// 			Static_GetText(g_feat.name[i].hFeatNameLbl, szBuffer1, sizeof szBuffer1);
-// 			wsprintf(szBuffer, TEXT("%s 为空,请填写数据"), szBuffer1);
-// 			MessageBox(NULL, szBuffer, TEXT("数据生成器"), MB_ICONWARNING);
-// 			SetFocus(g_feat.name[i].hFeatNameEdt);
-// 			return FALSE;
-// 		}
-// 		for (j = 0; j < g_feat.name[i].iFeatValNum; ++j)
-// 		{
-// 			Edit_GetText(g_feat.name[i].val[j].hFeatValEdt, szBuffer2, sizeof szBuffer2);
-// 			if (szBuffer2[0] == '\0')
-// 			{
-// 				Static_GetText(g_feat.name[i].hFeatNameLbl, szBuffer1, sizeof szBuffer1);
-// 				wsprintf(szBuffer, TEXT("%s 的第%i个特征值为空,请填写数据"), szBuffer1, j+1);
-// 				MessageBox(NULL, szBuffer, TEXT("数据生成器"), MB_ICONWARNING);
-// 				SetFocus(g_feat.name[i].val[j].hFeatValEdt);
-// 				return FALSE;
-// 			}
-// 		}
-// 	}
-// 
-// 	// check class
-// 	Edit_GetText(g_clss.hClssNameEdt, szBuffer1, sizeof szBuffer1);
-// 	if (szBuffer1[0] == '\0')
-// 	{
-// 		Static_GetText(g_clss.hClssNameLbl, szBuffer2, sizeof szBuffer2);
-// 		wsprintf(szBuffer, TEXT("%s 为空,请填写数据"), szBuffer2);
-// 		MessageBox(NULL, szBuffer, TEXT("数据生成器"), MB_ICONWARNING);
-// 		SetFocus(g_clss.hClssNameEdt);
-// 		return FALSE;
-// 	}
-// 	Edit_GetText(g_clss.hClssValEdt1, szBuffer1, sizeof szBuffer1);
-// 	if (szBuffer1[0] == '\0')
-// 	{
-// 		Static_GetText(g_clss.hClssValLbl, szBuffer2, sizeof szBuffer2);
-// 		wsprintf(szBuffer, TEXT("%s1为空,请填写数据"), szBuffer2);
-// 		MessageBox(NULL, szBuffer, TEXT("数据生成器"), MB_ICONWARNING);
-// 		SetFocus(g_clss.hClssValEdt1);
-// 		return FALSE;
-// 	}
-// 	Edit_GetText(g_clss.hClssValEdt2, szBuffer2, sizeof szBuffer2);
-// 	if (szBuffer2[0] == '\0')
-// 	{
-// 		Static_GetText(g_clss.hClssValLbl, szBuffer1, sizeof szBuffer1);
-// 		wsprintf(szBuffer, TEXT("%s2为空,请填写数据"), szBuffer1);
-// 		MessageBox(NULL, szBuffer, TEXT("数据生成器"), MB_ICONWARNING);
-// 		SetFocus(g_clss.hClssValEdt2);
-// 		return FALSE;
-// 	}
-// 	return TRUE;
-// }
 
 
 LRESULT CALLBACK DecTreeWinProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -1086,7 +989,7 @@ LRESULT CALLBACK LogWinProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPara
 		GetScrollInfo(hwnd, SB_HORZ, &si);
 		iHorzPos = si.nPos;
 		int iPaintBeg = max(0, iVerPos + ps.rcPaint.top / cyChar);
-		int iPaintEnd = min(logArry.size() - 1, iVerPos + ps.rcPaint.bottom / cyChar);
+		int iPaintEnd = min((int)logArry.size() - 1, iVerPos + ps.rcPaint.bottom / cyChar);
 		for (i = iPaintBeg; i <= iPaintEnd; ++i)
 		{
 			int x = cxChar * (1 - iHorzPos);
@@ -1148,11 +1051,6 @@ INT_PTR CALLBACK SelFeatDlgProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 			}
 		}
 		ComboBox_SetCurSel(hComboClss, 0);
-		//Edit_GetText(g_clss.hClssValEdt1, szBuffer, sizeof szBuffer);
-		//ComboBox_AddString(hComboClss, szBuffer);
-		//Edit_GetText(g_clss.hClssValEdt2, szBuffer, sizeof szBuffer);
-		//ComboBox_AddString(hComboClss, szBuffer);
-		//ComboBox_SetCurSel(hComboClss, 0);
 	}
 	case WM_SETFOCUS:
 		SetFocus(hComboFeat);
@@ -1189,24 +1087,6 @@ BOOL CALLBACK EnumChildWinProc(HWND hwnd, LPARAM lParam)
 	return TRUE;
 }
 
-HWND DoCreateTabControl(HWND hwndParent)
-{
-	INITCOMMONCONTROLSEX icex;
-	HWND hwndTab;
-	TCHAR szBuffer[256];  // Temporary buffer for strings.
-
-	// Initialize common controls.
-	icex.dwSize = sizeof(INITCOMMONCONTROLSEX);
-	icex.dwICC = ICC_TAB_CLASSES;
-	InitCommonControlsEx(&icex);
-
-	hwndTab = CreateWindowEx(0, WC_TABCONTROL, NULL,
-		TCS_FIXEDWIDTH | WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN,
-		0, 0, 0, 0,
-		hwndParent, NULL, g_hInst, NULL);
-	
-	return hwndTab;
-}
 
 int InsertTabItem(HWND hTab, LPTSTR pszText, int iid)
 {
@@ -1236,77 +1116,3 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 	return (INT_PTR)FALSE;
 }
-
-// BOOL AddOneFeature(FEATURE& feat, HWND hWinFeat)
-// {
-// 	if (feat.iFeatNamNum >= MAX_FEAT_NUM) return FALSE;
-// 	int i = feat.iFeatNamNum;
-// 	TCHAR szBuffer[256];
-// 	feat.iFeatNamNum++;
-// 	wsprintf(szBuffer, TEXT("特征名%i"), i + 1);
-// 	feat.name[i].hFeatNameLbl = CreateWindowEx(0, TEXT("static"), szBuffer,
-// 		WS_VISIBLE | WS_CHILD | SS_RIGHT,
-// 		0, 0, 0, 0, hWinFeat, NULL, g_hInst, NULL);
-// 	SendMessage(feat.name[i].hFeatNameLbl, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
-// 
-// 	feat.name[i].hFeatNameEdt = CreateWindowEx(0, TEXT("edit"), NULL,
-// 		WS_VISIBLE | WS_CHILD | WS_BORDER,
-// 		0, 0, 0, 0, hWinFeat, NULL, g_hInst, NULL);
-// 	SendMessage(feat.name[i].hFeatNameEdt, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
-// 
-// 	wsprintf(szBuffer, TEXT("特征值"));
-// 	feat.name[i].hFeatValLbl = CreateWindowEx(0, TEXT("static"), szBuffer,
-// 		WS_VISIBLE | WS_CHILD | SS_RIGHT,
-// 		0, 0, 0, 0, hWinFeat, NULL, g_hInst, NULL);
-// 	SendMessage(feat.name[i].hFeatValLbl, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
-// 	
-// 	feat.name[i].iFeatValNum = 1;
-// 	feat.name[i].val[0].hFeatValEdt = CreateWindowEx(0, TEXT("edit"), NULL,
-// 		WS_VISIBLE | WS_CHILD | WS_BORDER,
-// 		0, 0, 0, 0, hWinFeat, NULL, g_hInst, NULL);
-// 	SendMessage(feat.name[i].val[0].hFeatValEdt, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
-// 
-// 	feat.name[i].hFeatValBtnPlus = CreateWindowEx(0, TEXT("button"), TEXT("+"),
-// 		WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
-// 		0, 0, 0, 0, hWinFeat, NULL, g_hInst, NULL);
-// 	SendMessage(feat.name[i].hFeatValBtnPlus, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
-// 
-// 	feat.name[i].hFeatValBtnMinus = CreateWindowEx(0, TEXT("button"), TEXT("-"),
-// 		WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
-// 		0, 0, 0, 0, hWinFeat, NULL, g_hInst, NULL);
-// 	SendMessage(feat.name[i].hFeatValBtnMinus, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
-// 	Button_Enable(feat.name[i].hFeatValBtnMinus, FALSE);
-// 	return TRUE;
-// }
-
-// BOOL AddOneClss(CLSS& clss, HWND hWinClss)
-// {
-// 	TCHAR szBuffer[256];
-// 	wsprintf(szBuffer, TEXT("类别名"));
-// 	clss.hClssNameLbl = CreateWindowEx(0, TEXT("static"), szBuffer,
-// 		WS_VISIBLE | WS_CHILD | SS_RIGHT,
-// 		0, 0, 0, 0, hWinClss, NULL, g_hInst, NULL);
-// 	SendMessage(clss.hClssNameLbl, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
-// 
-// 	clss.hClssNameEdt = CreateWindowEx(0, TEXT("edit"), NULL,
-// 		WS_VISIBLE | WS_CHILD | WS_BORDER,
-// 		0, 0, 0, 0, hWinClss, NULL, g_hInst, NULL);
-// 	SendMessage(clss.hClssNameEdt, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
-// 
-// 	wsprintf(szBuffer, TEXT("类别值"));
-// 	clss.hClssValLbl = CreateWindowEx(0, TEXT("static"), szBuffer,
-// 		WS_VISIBLE | WS_CHILD | SS_RIGHT,
-// 		0, 0, 0, 0, hWinClss, NULL, g_hInst, NULL);
-// 	SendMessage(clss.hClssValLbl, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
-// 
-// 	clss.hClssValEdt1 = CreateWindowEx(0, TEXT("edit"), NULL,
-// 		WS_VISIBLE | WS_CHILD | WS_BORDER,
-// 		0, 0, 0, 0, hWinClss, NULL, g_hInst, NULL);
-// 	SendMessage(clss.hClssValEdt1, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
-// 
-// 	clss.hClssValEdt2 = CreateWindowEx(0, TEXT("edit"), NULL,
-// 		WS_VISIBLE | WS_CHILD | WS_BORDER,
-// 		0, 0, 0, 0, hWinClss, NULL, g_hInst, NULL);
-// 	SendMessage(clss.hClssValEdt2, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
-// 	return TRUE;
-// }

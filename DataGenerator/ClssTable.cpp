@@ -1,6 +1,5 @@
 #include "ClssTable.h"
 
-extern HWND g_hWinClss;
 extern HINSTANCE g_hInst;
 
 ClssTable::ClssTable()
@@ -18,6 +17,8 @@ ClssTable::~ClssTable()
 
 void ClssTable::AddClss(Clss* clss)
 {
+	clss->SetNamLblText(TEXT("类别名"));
+	clss->SetValLblText(TEXT("类别值"));
 	fClssArry.push_back(clss);
 }
 
@@ -60,80 +61,49 @@ BOOL ClssTable::AnyEmpty()
 	{
 		if (fClssArry[i]->AnyEmpty())
 		{
-			fClssArry[i]->GetNamLblText(szLblTxt, sizeof szLblTxt);
-			wsprintf(szBuf, TEXT("%s 为空,请填写数据"), szLblTxt);
-			MessageBox(NULL, szBuf, TEXT("数据生成器"), MB_ICONWARNING);
-			fClssArry[i]->SetFocus();
 			return TRUE;
 		}
 	}
-
-
-
-// 	Edit_GetText(g_clss.hClssNameEdt, szBuffer1, sizeof szBuffer1);
-// 	if (szBuffer1[0] == '\0')
-// 	{
-// 		Static_GetText(g_clss.hClssNameLbl, szBuffer2, sizeof szBuffer2);
-// 		wsprintf(szBuffer, TEXT("%s 为空,请填写数据"), szBuffer2);
-// 		MessageBox(NULL, szBuffer, TEXT("数据生成器"), MB_ICONWARNING);
-// 		SetFocus(g_clss.hClssNameEdt);
-// 		return FALSE;
-// 	}
-// 	Edit_GetText(g_clss.hClssValEdt1, szBuffer1, sizeof szBuffer1);
-// 	if (szBuffer1[0] == '\0')
-// 	{
-// 		Static_GetText(g_clss.hClssValLbl, szBuffer2, sizeof szBuffer2);
-// 		wsprintf(szBuffer, TEXT("%s1为空,请填写数据"), szBuffer2);
-// 		MessageBox(NULL, szBuffer, TEXT("数据生成器"), MB_ICONWARNING);
-// 		SetFocus(g_clss.hClssValEdt1);
-// 		return FALSE;
-// 	}
-// 	Edit_GetText(g_clss.hClssValEdt2, szBuffer2, sizeof szBuffer2);
-// 	if (szBuffer2[0] == '\0')
-// 	{
-// 		Static_GetText(g_clss.hClssValLbl, szBuffer1, sizeof szBuffer1);
-// 		wsprintf(szBuffer, TEXT("%s2为空,请填写数据"), szBuffer1);
-// 		MessageBox(NULL, szBuffer, TEXT("数据生成器"), MB_ICONWARNING);
-// 		SetFocus(g_clss.hClssValEdt2);
-// 		return FALSE;
-// 	}
 	return FALSE;
 }
 
 RECT ClssTable::MoveWindow(int x, int y, BOOL bRepaint)
 {
 	// x=20, y=5
+	int yBase = 0, xMax = 0, yMax = 0, i, j;
 	RECT rcBig{ x,y,x,y };
-	for (int i = 0; i < fClssArry.size(); ++i)
+
+	for (i = 0; i < fClssArry.size(); ++i)
 	{
-		RECT rc=fClssArry[i]->MoveWindow(x, y, bRepaint);
+		RECT rc = fClssArry[i]->MoveWindow(22 + x, 5 + y + yBase, bRepaint);
 		UnionRect(&rcBig, &rcBig, &rc);
+		yBase += 60;
 	}
 	return rcBig;
 }
 
-Clss::Clss()
+Clss::Clss(HWND hWndParent)
 {
 	bFlag = 0;
 
 	TCHAR szBuffer[256];
 	hNameLbl = CreateWindowEx(0, TEXT("static"), NULL,
 		WS_VISIBLE | WS_CHILD | SS_RIGHT,
-		0, 0, 0, 0, g_hWinClss, NULL, g_hInst, NULL);
+		0, 0, 0, 0, hWndParent, NULL, g_hInst, NULL);
 	SendMessage(hNameLbl, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
 
 	hNameEdt = CreateWindowEx(0, TEXT("edit"), NULL,
 		WS_VISIBLE | WS_CHILD | WS_BORDER,
-		0, 0, 0, 0, g_hWinClss, NULL, g_hInst, NULL);
+		0, 0, 0, 0, hWndParent, NULL, g_hInst, NULL);
 	SendMessage(hNameEdt, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
 
 	hValLbl = CreateWindowEx(0, TEXT("static"), NULL,
 		WS_VISIBLE | WS_CHILD | SS_RIGHT,
-		0, 0, 0, 0, g_hWinClss, NULL, g_hInst, NULL);
+		0, 0, 0, 0, hWndParent, NULL, g_hInst, NULL);
 	SendMessage(hValLbl, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
 
-	vals.push_back(new ClssVal());
-	vals.push_back(new ClssVal());
+	vals.push_back(new ClssVal(hWndParent));
+	vals.push_back(new ClssVal(hWndParent));
 }
 
 Clss::~Clss()
@@ -199,19 +169,31 @@ int Clss::GetNamEdtText(__out TCHAR* szClssName, __in int iMaxSize)
 
 RECT Clss::MoveWindow(int x, int y, BOOL bRepaint)
 {
-	RECT rcBig{ x,y,x,y };
-	// 
-	::MoveWindow(hNameLbl, x, y, 67, 20, bRepaint);
-	::MoveWindow(hNameEdt, x + 80, y, 71, 20, bRepaint);
-	::MoveWindow(hValLbl, x, y + 25, 67, 20, bRepaint);
-	int xBase = 0;
+	// x=22,y=5
+	::MoveWindow(hNameLbl, x, y, 50, 20, bRepaint);
+	::MoveWindow(hNameEdt, x + 60, y, 71, 20, bRepaint);
+	::MoveWindow(hValLbl, x, y + 30, 50, 20, bRepaint);
+	RECT rcBig = { x, y, x + 60 + 71, y + 50 }, rc{ x,y,x + 50,y + 50 };
 	for (int j = 0; j < vals.size(); ++j)
 	{
-		RECT rc=vals[j]->MoveWindow(x + 80 + xBase, y + 25, bRepaint);
+		rc = vals[j]->MoveWindow(rc.right + 10, y + 30, bRepaint);
 		UnionRect(&rcBig, &rcBig, &rc);
-		xBase += 80;
 	}
 	return rcBig;
+
+// 	RECT rcBig{ x,y,x,y };
+// 	// 
+// 	::MoveWindow(hNameLbl, x, y, 67, 20, bRepaint);
+// 	::MoveWindow(hNameEdt, x + 80, y, 71, 20, bRepaint);
+// 	::MoveWindow(hValLbl, x, y + 25, 67, 20, bRepaint);
+// 	int xBase = 0;
+// 	for (int j = 0; j < vals.size(); ++j)
+// 	{
+// 		RECT rc=vals[j]->MoveWindow(x + 80 + xBase, y + 25, bRepaint);
+// 		UnionRect(&rcBig, &rcBig, &rc);
+// 		xBase += 80;
+// 	}
+// 	return rcBig;
 // 	MoveWindow(g_clss.hClssNameLbl, 20, 5, 67, 20, TRUE);
 // 	MoveWindow(g_clss.hClssNameEdt, 100, 5, 71, 20, TRUE);
 // 	MoveWindow(g_clss.hClssValLbl, 20, 30, 67, 20, TRUE);
@@ -224,12 +206,18 @@ BOOL Clss::AnyEmpty()
 	TCHAR szName[64],szVal[64],szNameLbl[64],szValLbl[64],szBuf[64];
 	int iSize = GetNamEdtText(szName, sizeof szName);
 	if (szName[0] == '\0')
+	{
+		GetNamLblText(szNameLbl, sizeof szNameLbl);
+		wsprintf(szBuf, TEXT("%s 为空,请填写数据"), szNameLbl);
+		MessageBox(NULL, szBuf, TEXT("数据生成器"), MB_ICONWARNING);
+		SetFocus();
 		return TRUE;
+	}
 	for (int j=0;j<vals.size();++j)
 	{
 		if (vals[j]->AnyEmpty())
 		{
-			Static_GetText(hValLbl, szValLbl, sizeof szValLbl);
+			GetNamLblText(szNameLbl, sizeof szNameLbl);
 			wsprintf(szBuf, TEXT("%s 的第%i个类别值为空,请填写数据"), szNameLbl, j+1);
 			MessageBox(NULL, szBuf, TEXT("数据生成器"), MB_ICONWARNING);
 			vals[j]->SetFocus();
@@ -244,21 +232,20 @@ void Clss::SetFocus()
 	::SetFocus(hNameEdt);
 }
 
-ClssVal::ClssVal()
+ClssVal::ClssVal(HWND hWndParent)
 {
 	bFlag = 0;
 
 	hValEdt = CreateWindowEx(0, TEXT("edit"), NULL,
 		WS_VISIBLE | WS_CHILD | WS_BORDER,
-		0, 0, 0, 0, g_hWinClss, NULL, g_hInst, NULL);
+		0, 0, 0, 0, hWndParent, NULL, g_hInst, NULL);
 	SendMessage(hValEdt, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);
 }
 
 RECT ClssVal::MoveWindow(int x, int y, BOOL bRepaint)
 {
-	RECT rc{ x,y,71,20 };
 	::MoveWindow(hValEdt, x, y, 71, 20, bRepaint);
-	return rc;
+	return RECT{ x,y,x+71,y+20 };
 }
 
 int ClssVal::GetText(__out TCHAR* szClssVal, __in int iMaxSize)

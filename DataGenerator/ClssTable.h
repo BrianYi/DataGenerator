@@ -6,7 +6,7 @@
 class ClssVal
 {
 public:
-	ClssVal();
+	ClssVal(HWND hWndParent);
 	~ClssVal() { DestroyWindow(hValEdt); }
 	int Flag() { return bFlag; }
 	void SetFlag(int flg) { bFlag = flg; }
@@ -22,7 +22,7 @@ private:
 class Clss
 {
 public:
-	Clss();
+	Clss(HWND hWndParent);
 	~Clss();
 	void SetNamLblText(const TCHAR *format, ...);
 	void SetValLblText(const TCHAR *format, ...);

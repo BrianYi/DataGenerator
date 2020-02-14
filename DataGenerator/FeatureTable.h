@@ -27,7 +27,10 @@ public:
 	void SetValLblText(const TCHAR *format,...);
 	void AddFeatVal(FeatVal *featVal);
 	void DelFeatVal(int vid);
+	std::vector<FeatVal*>& GetFeatValArry();
 	FeatVal *GetFeatVal(int vid);
+	FeatVal *BackFeatVal();
+	FeatVal *FrontFeatVal();
 	int CountVal() { return vals.size(); }
 	int Flag() { return bFlag; }
 	void SetFlag(int flg) { bFlag = flg; }
@@ -55,6 +58,8 @@ public:
 	void DelFeatVal(int fid, int vid);
 	std::vector<Feat*>& GetFeatArry();
 	Feat* GetFeat(int fid);
+	Feat* BackFeat();
+	Feat* FrontFeat();
 	void SetFeature(int fid, Feat* feat);
 	int CountFeature() { return fFeatArry.size(); }
 	RECT MoveWindow(int x, int y, BOOL bRepaint);
